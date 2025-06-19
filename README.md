@@ -32,3 +32,9 @@ dev02|devuser|devpass|192.168.2.10|22|开发
 [测试环境]
 test01|tester|testpass|192.168.3.20|22|测试
 ```
+
+- run 运行
+
+```bash
+ms # /usr/local/bin/ms
+```
