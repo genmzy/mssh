@@ -25,4 +25,4 @@ mkdir "$HOME"/.config/
 
 echo "first trying and generate configuration sample, next just run \`ms\`"
 
-ms
+/usr/local/bin/ms
