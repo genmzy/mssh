@@ -5,7 +5,7 @@
 # 功能：带搜索、分组和标记的服务器管理
 
 # 配置文件路径
-CONFIG_DIR="$HOME/.config"
+CONFIG_DIR="$HOME/.config/mssh"
 CONFIG_FILE="$CONFIG_DIR/mssh.conf"
 TAGS_FILE="$CONFIG_DIR/tags.conf"
 HISTORY_FILE="$CONFIG_DIR/history.log"
