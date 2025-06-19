@@ -22,4 +22,7 @@ fi
 
 sudo cp ./ms /usr/local/bin/
 mkdir "$HOME"/.config/
-cp ./mssh "$HOME"/.config/mssh
+
+echo "first trying and generate configuration sample"
+
+ms
