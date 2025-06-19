@@ -20,7 +20,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sudo cp ./ms /usr/local/bin/
+sudo cp ./ms /usr/local/bin/ && chmod a+x /usr/local/bin/ms
 mkdir "$HOME"/.config/
 
 echo "first trying and generate configuration sample"
