@@ -101,13 +101,16 @@ display_servers() {
 		((counter++))
 	done <"$config"
 
+	echo ""
+	echo "**********************************************"
+	echo " q) 退出"
 	echo "----------------------------------------------"
 	if [[ $counter -lt 2 ]]; then
-		echo -n "无服务器, 输入q返回主菜单: "
+		echo -n "无服务器(q): "
 	elif [[ $counter -eq 2 ]]; then
-		echo -n "输入选择(1), q返回主菜单: "
+		echo -n "输入选择(1|q): "
 	else
-		echo -n "输入选择 (1-$((counter - 1)), q返回主菜单: "
+		echo -n "输入选择 (1-$((counter - 1))|q): "
 	fi
 }
 
