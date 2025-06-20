@@ -57,9 +57,9 @@ show_menu() {
 	echo " 4) 显示历史记录"
 	echo " 5) 编辑服务器配置"
 	echo " 6) 管理标签"
-	echo " 7) 退出"
+	echo " q) 退出"
 	echo "----------------------------------------------"
-	echo -n "请输入选择 (1-7): "
+	echo -n "请输入选择 (1-6|q): "
 }
 
 # 显示服务器列表
@@ -101,7 +101,13 @@ display_servers() {
 	done <"$config"
 
 	echo "----------------------------------------------"
-	echo -n "输入选择 (1-$((counter - 1)), b返回主菜单: "
+	if [[ $counter -lt 2 ]]; then
+		echo -n "无服务器, 输入q返回主菜单: "
+	elif [[ $counter -eq 2 ]]; then
+		echo -n "输入选择(1), q返回主菜单: "
+	else
+		echo -n "输入选择 (1-$((counter - 1)), q返回主菜单: "
+	fi
 }
 
 # 连接服务器
@@ -155,7 +161,7 @@ search_servers() {
 	while true; do
 		read choice
 
-		[ "$choice" == "b" ] && break
+		[ "$choice" == "q" ] && break
 
 		if [[ "$choice" =~ ^[0-9]+$ ]]; then
 			selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
@@ -198,10 +204,10 @@ filter_by_tag() {
 	done
 
 	echo "----------------------------------------------"
-	echo -n "选择标签 (1-$((tag_counter - 1)), b返回): "
+	echo -n "选择标签 (1-$((tag_counter - 1)), q返回): "
 
 	read tag_choice
-	[ "$tag_choice" == "b" ] && return
+	[ "$tag_choice" == "q" ] && return
 
 	if [[ "$tag_choice" =~ ^[0-9]+$ ]] && [ "$tag_choice" -ge 1 ] && [ "$tag_choice" -lt $tag_counter ]; then
 		selected_tag=${tag_map[$tag_choice]}
@@ -225,7 +231,7 @@ filter_by_tag() {
 		while true; do
 			read choice
 
-			[ "$choice" == "b" ] && break
+			[ "$choice" == "q" ] && break
 
 			if [[ "$choice" =~ ^[0-9]+$ ]]; then
 				selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
@@ -364,7 +370,7 @@ while true; do
 		while true; do
 			read choice
 
-			[ "$choice" == "b" ] && break
+			[ "$choice" == "q" ] && break
 
 			if [[ "$choice" =~ ^[0-9]+$ ]]; then
 				selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
@@ -405,7 +411,7 @@ while true; do
 		manage_tags
 		;;
 
-	7)
+	q)
 		# 退出
 		echo ""
 		echo "感谢使用mssh!"
