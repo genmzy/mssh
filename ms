@@ -9,14 +9,16 @@ CONFIG_DIR="$HOME/.config/mssh"
 CONFIG_FILE="$CONFIG_DIR/mssh.conf"
 TAGS_FILE="$CONFIG_DIR/tags.conf"
 HISTORY_FILE="$CONFIG_DIR/history.log"
+TRANSFER_LOG="$CONFIG_DIR/transfer.log"
 
 # 创建必要目录和文件
 mkdir -p "$CONFIG_DIR"
 touch "$CONFIG_FILE"
 touch "$TAGS_FILE"
 touch "$HISTORY_FILE"
+touch "$TRANSFER_LOG"
 
-# 初始化默认配置（如果文件为空）
+# 初始化默认配置
 if [ ! -s "$CONFIG_FILE" ]; then
 	cat >"$CONFIG_FILE" <<EOF
 # 服务器配置格式：
@@ -44,23 +46,24 @@ fi
 show_header() {
 	clear
 	echo "=============================================="
-	echo "  mssh (v1.0) - 共 $(grep -vE '^#|^$|^\[' "$CONFIG_FILE" | wc -l) 台服务器"
+	echo "  mssh (v1.0) - 支持文件传输"
 	echo "=============================================="
 }
 
 # 显示菜单选项
 show_menu() {
 	echo "请选择操作:"
-	echo " 1) 连接服务器"
+	echo " 1) 连接或传输文件"
 	echo " 2) 搜索服务器"
 	echo " 3) 按标签筛选"
 	echo " 4) 显示历史记录"
-	echo " 5) 编辑服务器配置"
-	echo " 6) 管理标签"
+	echo " 5) 显示传输日志"
+	echo " 6) 编辑服务器配置"
+	echo " 7) 管理标签"
 	echo "**********************************************"
 	echo " q) 退出"
 	echo "----------------------------------------------"
-	echo -n "请输入选择 (1-6|q): "
+	echo -n "请输入选择 (1-7|q): "
 }
 
 # 显示服务器列表
@@ -114,13 +117,53 @@ display_servers() {
 	fi
 }
 
+# 服务器操作菜单
+server_operation_menu() {
+	local server_info="$1"
+	IFS='|' read -r num alias user pass host port tags <<<"$server_info"
+
+	while true; do
+		show_header
+		echo "已选择服务器: $alias ($user@$host:$port)"
+		echo "----------------------------------------------"
+		echo "请选择操作:"
+		echo " 1) 连接服务器"
+		echo " 2) 上传文件/目录到服务器"
+		echo " 3) 从服务器下载文件/目录"
+		echo " q) 返回"
+		echo "----------------------------------------------"
+		echo -n "请输入选择 (1-3|q): "
+
+		read op_choice
+		case $op_choice in
+		1)
+			connect_server "$server_info"
+			return
+			;;
+		2)
+			upload_to_server "$server_info"
+			;;
+		3)
+			download_from_server "$server_info"
+			;;
+		q)
+			return
+			;;
+		*)
+			echo "无效选择"
+			sleep 1
+			;;
+		esac
+	done
+}
+
 # 连接服务器
 connect_server() {
 	IFS='|' read -r num alias user pass host port tags <<<"$1"
 
 	# 记录连接历史
 	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-	echo "$timestamp|$user@$host:$port ($alias)" >>"$HISTORY_FILE"
+	echo "$timestamp|连接|$user@$host:$port ($alias)" >>"$HISTORY_FILE"
 
 	# 使用expect自动登录
 	echo "正在连接: $user@$host:$port ($alias)..."
@@ -134,6 +177,94 @@ connect_server() {
   }
   interact
   "
+}
+
+# 上传文件到服务器
+upload_to_server() {
+	IFS='|' read -r num alias user pass host port tags <<<"$1"
+
+	show_header
+	echo "上传文件到服务器: $alias ($user@$host:$port)"
+	echo "----------------------------------------------"
+	echo -n "输入本地文件/目录路径: "
+	read local_path
+
+	if [ ! -e "$local_path" ]; then
+		echo "错误: 本地路径 '$local_path' 不存在"
+		read -n1 -p "按任意键返回..."
+		return
+	fi
+
+	echo -n "输入远程目标路径: "
+	read remote_path
+
+	# 记录传输日志
+	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+	echo "$timestamp|上传|$user@$host:$port|$local_path -> $remote_path" >>"$TRANSFER_LOG"
+	echo "$timestamp|上传|$user@$host:$port|$local_path -> $remote_path" >>"$HISTORY_FILE"
+
+	echo "正在上传: $local_path 到 $remote_path..."
+
+	# 使用expect自动上传
+	expect -c "
+  set timeout 300
+  spawn scp -P $port -r \"$local_path\" $user@$host:\"$remote_path\"
+  expect {
+      \"yes/no\" { send \"yes\r\"; exp_continue }
+      \"*password:\" { send \"$pass\r\" }
+      timeout { send_user \"上传超时\n\"; exit 1 }
+  }
+  expect eof
+  "
+
+	if [ $? -eq 0 ]; then
+		echo "上传成功!"
+	else
+		echo "上传失败!"
+	fi
+
+	read -n1 -p "按任意键返回..."
+}
+
+# 从服务器下载文件
+download_from_server() {
+	IFS='|' read -r num alias user pass host port tags <<<"$1"
+
+	show_header
+	echo "从服务器下载文件: $alias ($user@$host:$port)"
+	echo "----------------------------------------------"
+	echo -n "输入远程文件/目录路径: "
+	read remote_path
+
+	echo -n "输入本地目标路径: "
+	read local_path
+
+	# 记录传输日志
+	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+	echo "$timestamp|下载|$user@$host:$port|$remote_path -> $local_path" >>"$TRANSFER_LOG"
+	echo "$timestamp|下载|$user@$host:$port|$remote_path -> $local_path" >>"$HISTORY_FILE"
+
+	echo "正在下载: $remote_path 到 $local_path..."
+
+	# 使用expect自动下载
+	expect -c "
+  set timeout 300
+  spawn scp -P $port -r $user@$host:\"$remote_path\" \"$local_path\"
+  expect {
+      \"yes/no\" { send \"yes\r\"; exp_continue }
+      \"*password:\" { send \"$pass\r\" }
+      timeout { send_user \"下载超时\n\"; exit 1 }
+  }
+  expect eof
+  "
+
+	if [ $? -eq 0 ]; then
+		echo "下载成功!"
+	else
+		echo "下载失败!"
+	fi
+
+	read -n1 -p "按任意键返回..."
 }
 
 # 搜索服务器
@@ -171,7 +302,7 @@ search_servers() {
 			selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
 			if [ -n "$selected" ]; then
 				rm -f "$TMP_SEARCH" "$TMP_MENU"
-				connect_server "$selected"
+				server_operation_menu "$selected"
 				return
 			fi
 		fi
@@ -208,7 +339,7 @@ filter_by_tag() {
 	done
 
 	echo "----------------------------------------------"
-	echo -n "选择标签 (1-$((tag_counter - 1)), q返回): "
+	echo -n "选择标签 (1-$((tag_counter - 1)), q返回: "
 
 	read tag_choice
 	[ "$tag_choice" == "q" ] && return
@@ -241,7 +372,7 @@ filter_by_tag() {
 				selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
 				if [ -n "$selected" ]; then
 					rm -f "$TMP_TAG" "$TMP_MENU"
-					connect_server "$selected"
+					server_operation_menu "$selected"
 					return
 				fi
 			fi
@@ -259,9 +390,19 @@ filter_by_tag() {
 # 显示连接历史
 show_history() {
 	show_header
-	echo "最近连接历史:"
+	echo "最近操作历史:"
 	echo "----------------------------------------------"
-	tail -n 10 "$HISTORY_FILE" | awk -F'|' '{printf "%-19s %s\n", $1, $2}'
+	tail -n 10 "$HISTORY_FILE" | awk -F'|' '{printf "%-19s | %-5s | %s\n", $1, $2, $3}'
+	echo "----------------------------------------------"
+	read -n1 -p "按任意键返回..."
+}
+
+# 显示传输日志
+show_transfer_log() {
+	show_header
+	echo "最近文件传输记录:"
+	echo "----------------------------------------------"
+	tail -n 10 "$TRANSFER_LOG" | awk -F'|' '{printf "%-19s | %-5s | %s\n  %s\n", $1, $2, $3, $4}'
 	echo "----------------------------------------------"
 	read -n1 -p "按任意键返回..."
 }
@@ -296,7 +437,6 @@ manage_tags() {
 		echo "1) 查看所有标签"
 		echo "2) 重命名标签"
 		echo "3) 删除标签"
-		echo "**********************************************"
 		echo "q) 返回主菜单"
 		echo "----------------------------------------------"
 		echo -n "请选择操作 (1-3|q): "
@@ -367,7 +507,7 @@ while true; do
 	read main_choice
 	case $main_choice in
 	1)
-		# 连接服务器
+		# 连接或传输文件
 		TMP_MENU=$(mktemp)
 		show_header
 		display_servers "$CONFIG_FILE"
@@ -381,7 +521,7 @@ while true; do
 				selected=$(awk -F'|' -v choice="$choice" '$1 == choice {print $0}' "$TMP_MENU")
 				if [ -n "$selected" ]; then
 					rm -f "$TMP_MENU"
-					connect_server "$selected"
+					server_operation_menu "$selected"
 					break
 				fi
 			fi
@@ -407,11 +547,16 @@ while true; do
 		;;
 
 	5)
+		# 显示传输日志
+		show_transfer_log
+		;;
+
+	6)
 		# 编辑配置
 		edit_config
 		;;
 
-	6)
+	7)
 		# 管理标签
 		manage_tags
 		;;
@@ -419,7 +564,7 @@ while true; do
 	q)
 		# 退出
 		echo ""
-		echo "感谢使用mssh!"
+		echo "感谢使用 serverssh!"
 		exit 0
 		;;
 
