@@ -26,3 +26,5 @@ mkdir "$HOME"/.config/
 echo "first trying and generate configuration sample, next just run \`ms\`"
 
 /usr/local/bin/ms
+
+chown -R $USER:$USER ~/.config/mssh
